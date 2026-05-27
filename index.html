@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThaiAlert!</title>
+
+    <!-- Custom Exclamation Warning Favicon -->
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444'%3E%3Cpath d='M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v-2h2v2zm0-4h-2V8h2v4z'/%3E%3C/svg%3E">
+
+    <!-- Leaflet.js Mapping CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Custom Application CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="logo-container">
+            <div class="logo-badge">🚨</div>
+            <div class="logo-text">
+                <h1 id="header-title" data-translate="app_name">ThaiAlert! <span>Disaster Early Warning System</span>
+                </h1>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <!-- Language Selection Toggle -->
+            <button id="btn-lang" class="btn-icon" onclick="toggleLanguage()">
+                <span>TH</span> / <span>EN</span>
+            </button>
+
+            <!-- Light/Dark Mode Switcher -->
+            <button id="btn-theme" class="btn-icon btn-theme-toggle" onclick="toggleTheme()"
+                title="สลับโหมดสว่าง/มืด (Toggle Theme)">
+                🌓
+            </button>
+
+            <!-- User Login / Sign Up Area -->
+            <div id="user-auth-area">
+                <button id="btn-user-auth" class="btn-icon active" onclick="openAuthModal()">
+                    👤 <span id="auth-btn-text">เข้าสู่ระบบ / สมัครสมาชิก</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Body -->
+    <div class="dashboard-container">
+
+        <!-- Left: Mapping & Overlays (70% width on Desktop) -->
+        <main class="map-panel">
+            <div id="map"></div>
+
+            <!-- Floating Emergency Hotlines Toggle Button -->
+            <button id="btn-hotline" class="floating-hotline-btn" onclick="toggleHotlinePanel()"
+                title="สายด่วนฉุกเฉิน (Emergency Hotlines)">
+                📞
+            </button>
+
+            <!-- Emergency Hotlines Scrollable Panel -->
+            <div id="hotline-panel" class="hotline-panel" style="display: none;">
+                <div class="hotline-header">
+                    <h4>📞 สายด่วนฉุกเฉิน (Hotlines)</h4>
+                    <button class="hotline-close" onclick="toggleHotlinePanel()">✕</button>
+                </div>
+                <div class="hotline-body">
+                    <div class="hotline-item"><a href="tel:191"><strong>191</strong> เหตุด่วนเหตุร้าย (Police)</a></div>
+                    <div class="hotline-item"><a href="tel:1669"><strong>1669</strong> เจ็บป่วยฉุกเฉิน (Ambulance)</a>
+                    </div>
+                    <div class="hotline-item"><a href="tel:199"><strong>199</strong> ดับเพลิงและกู้ภัย (Fire)</a></div>
+                    <div class="hotline-item"><a href="tel:1784"><strong>1784</strong> ปภ. แจ้งเตือนภัย (Disaster)</a>
+                    </div>
+                    <div class="hotline-item"><a href="tel:1193"><strong>1193</strong> ตำรวจทางหลวง (Highway)</a></div>
+                    <div class="hotline-item"><a href="tel:1155"><strong>1155</strong> ตำรวจท่องเที่ยว (Tourist)</a>
+                    </div>
+                    <div class="hotline-item"><a href="tel:1356"><strong>1356</strong> ศูนย์ช่วยเหลือผู้ประสบภัย</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Satellite Imagery Map Custom Control -->
+            <div class="map-layer-switcher">
+                <button id="btn-map-vector" class="layer-btn active" onclick="switchMapStyle('vector')">Vector</button>
+                <button id="btn-map-satellite" class="layer-btn"
+                    onclick="switchMapStyle('satellite')">Satellite</button>
+            </div>
+
+            <!-- Overlay: Real-time System Status Dashboard -->
+            <div class="map-status-dashboard">
+                <h3 data-translate="monitoring_center">📡 ศูนย์ตรวจสอบสถานะ</h3>
+                <div class="system-status-indicator">
+                    <div id="status-pulse" class="pulse-dot"></div>
+                    <span id="status-text" data-translate="status_ready">ระบบพร้อมใช้งาน (ปกติ)</span>
+                </div>
+                <div class="status-stats">
+                    <div class="stat-item">
+                        <span data-translate="total_incidents">เหตุการณ์ทั้งหมด</span>
+                        <strong id="stat-total-count">0</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span data-translate="active_warnings">เตือนภัยวิกฤต</span>
+                        <strong id="stat-active-warnings" style="color: var(--accent-red)">0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay: Map Color-Coded Severity Legend -->
+            <div class="map-legend">
+                <div class="legend-title" data-translate="severity_level">ระดับความรุนแรง</div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-red)"></div>
+                    <span data-translate="sev_red">วิกฤต (แดง / Mag > 5.5)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-yellow)"></div>
+                    <span data-translate="sev_yellow">เฝ้าระวัง (เหลือง / Mag 4.0 - 5.5)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-green)"></div>
+                    <span data-translate="sev_green">ปกติ/เล็กน้อย (เขียว / Mag < 4.0)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: var(--accent-blue)"></div>
+                    <span data-translate="user_location">ตำแหน่งของคุณ</span>
+                </div>
+            </div>
+
+            <!-- Overlay: Full-Screen / Bottom Emergency Warning Banner -->
+            <div id="emergency-banner" class="emergency-banner">
+                <div class="emergency-banner-content">
+                    <div class="emergency-banner-icon">⚠️</div>
+                    <div class="emergency-banner-text">
+                        <h4 data-translate="emergency_warning">การเตือนภัยฉุกเฉินวิกฤต</h4>
+                        <p id="emergency-banner-desc">ตรวจพบแผ่นดินไหวขนาด 6.2 ในจังหวัดเชียงใหม่ ห่างจากคุณ 120 กม.
+                            หลบภัยทันที!</p>
+                    </div>
+                </div>
+                <button class="btn-banner-close" onclick="closeEmergencyBanner()"
+                    title="ปิดการแจ้งเตือน (Mute/Close)">✕</button>
+            </div>
+
+            <!-- Overlay: Timeline Playback Control Panel (NVR Playback) -->
+            <div id="timeline-nvr-container" class="timeline-slider-container nvr-playback-panel"
+                style="display: none;">
+                <div class="playback-controls">
+                    <button id="btn-timeline-play" class="btn-playback" onclick="toggleTimelinePlayback()"
+                        title="เล่น/หยุด (Play/Pause)">▶</button>
+                    <button id="btn-timeline-reset" class="btn-playback" onclick="resetTimeline()"
+                        title="รีเซ็ต (Reset)">↻</button>
+                </div>
+                <div class="timeline-slider-wrapper">
+                    <div class="timeline-labels">
+                        <span id="timeline-time-label" data-translate="timeline_realtime">ประวัติย้อนหลัง: สด
+                            (เรียลไทม์)</span>
+                        <span id="timeline-status" style="font-weight: bold; color: var(--accent-yellow);">PLAYBACK
+                            MODE</span>
+                    </div>
+                    <input type="range" id="timeline-slider" class="timeline-slider" min="0" max="60" value="60"
+                        oninput="onTimelineSliderChange(this.value)">
+                </div>
+                <button class="nvr-close-btn" onclick="exitNvrMode()"
+                    title="ออกจากโหมดย้อนหลัง (Exit NVR Playback)">✕</button>
+            </div>
+
+            <!-- PIP Mini Overlay Status Widget (Visible when sidebar is collapsed) -->
+            <div id="pip-warning-widget" class="pip-warning-widget" onclick="toggleSidebarCollapse()"
+                style="display: none;">
+                <div class="pip-header">
+                    <span class="pip-badge">แจ้งเตือนล่าสุด</span>
+                    <span class="pip-pulse-dot"></span>
+                </div>
+                <div id="pip-latest-title" class="pip-title">ไม่มีข้อมูลแจ้งเตือนใหม่</div>
+            </div>
+        </main>
+
+        <!-- Drag Handle for Resizable Sidebar -->
+        <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+
+        <!-- Right: Incident Sidebar & Advanced Filters (30% width on Desktop) -->
+        <aside id="sidebar-panel" class="sidebar-panel">
+            <div class="sidebar-header">
+                <h2>
+                    <button id="btn-collapse-sidebar" class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()"
+                        title="หุบ/กางหน้าต่าง (Collapse/Expand)">⏵</button>
+                    <span data-translate="sidebar_title">แจ้งเตือนล่าสุด</span>
+                    <span id="incident-count-badge" class="sidebar-badge">0</span>
+                </h2>
+                <!-- Audio Mute Control -->
+                <button id="btn-mute" class="btn-icon" onclick="toggleMute()" title="เปิด/ปิดเสียง (Mute/Unmute)">
+                    🔊 <span data-translate="audio_unmuted">เสียงเปิดอยู่</span>
+                </button>
+            </div>
+
+            <!-- Tab selector for Warnings vs Bookmarked Favorites -->
+            <div class="sidebar-tabs">
+                <button id="tab-warnings" class="tab-btn active" onclick="switchSidebarTab('warnings')">📢
+                    เหตุการณ์ภัย</button>
+                <button id="tab-favorites" class="tab-btn" onclick="switchSidebarTab('favorites')">⭐ รายการโปรด</button>
+            </div>
+
+            <div id="sidebar-warnings-view">
+                <!-- NVR playback mode toggle trigger -->
+                <div class="nvr-toggle-section">
+                    <button id="btn-nvr-toggle" class="nvr-toggle-btn" onclick="enterNvrMode()">
+                        📼 ย้อนประวัติการบันทึก (NVR Playback)
+                    </button>
+                </div>
+
+                <!-- Sidebar: Archive & Filter Panel -->
+                <div class="filter-panel">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="filter-type" data-translate="filter_type_label">ประเภทภัย</label>
+                            <select id="filter-type" class="form-select" onchange="applyFilters()">
+                                <option value="all" data-translate="opt_all">ทั้งหมด</option>
+                                <option value="earthquake" data-translate="opt_earthquake">แผ่นดินไหว</option>
+                                <option value="tsunami" data-translate="opt_tsunami">สึนามิ</option>
+                                <option value="civil_unrest" data-translate="opt_civil">ความไม่สงบ</option>
+                                <option value="accident" data-translate="opt_accident">อุบัติเหตุร้ายแรง</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-severity" data-translate="filter_severity_label">ความรุนแรง</label>
+                            <select id="filter-severity" class="form-select" onchange="applyFilters()">
+                                <option value="all" data-translate="opt_all">ทั้งหมด</option>
+                                <option value="green" data-translate="opt_green">เล็กน้อย (เขียว)</option>
+                                <option value="yellow" data-translate="opt_yellow">เฝ้าระวัง (เหลือง)</option>
+                                <option value="red" data-translate="opt_red">วิกฤต (แดง)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="filter-province"
+                                data-translate="filter_province_label">จังหวัดที่ได้รับผลกระทบ</label>
+                            <select id="filter-province" class="form-select" onchange="applyFilters()">
+                                <option value="all" data-translate="opt_all">ทุกจังหวัด</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-simulation" data-translate="filter_sim_label">โหมดการแสดง</label>
+                            <select id="filter-simulation" class="form-select" onchange="applyFilters()">
+                                <option value="all" data-translate="opt_all_incidents">รวมการจำลอง</option>
+                                <option value="0" data-translate="opt_real_only">เหตุการณ์จริงเท่านั้น</option>
+                                <option value="1" data-translate="opt_sim_only">การซ้อมจำลองเท่านั้น</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sidebar-favorites-view" style="display: none;">
+                <!-- Information for non-logged in users in favorites tab -->
+                <div id="fav-anonymous-alert" class="fav-anonymous-alert">
+                    <p>🔒 กรุณาเข้าสู่ระบบเพื่อใช้งานระบบการบันทึกเหตุการณ์โปรดและเขียนจดบันทึกส่วนตัว</p>
+                    <button class="btn-primary" onclick="openAuthModal()"
+                        style="margin-top: 10px;">เข้าสู่ระบบทันที</button>
+                </div>
+            </div>
+
+            <!-- Sidebar: Scrollable Feed Container -->
+            <div id="feed-container" class="feed-content">
+                <div class="loading-placeholder"
+                    style="text-align: center; color: var(--text-secondary); padding: 40px 0;" data-translate="loading">
+                    กำลังโหลดข้อมูลเหตุการณ์...
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Credit Footer & Operator Login Link -->
+    <footer>
+        <div class="footer-content">
+            <span>สร้างโดย <strong>Tony Chun.</strong></span>
+            <a href="#" class="footer-admin-link" onclick="openAdminModal()">ห้องสั่งการเจ้าหน้าที่</a>
+        </div>
+    </footer>
+
+    <!-- Modal: secure admin control & simulation panel -->
+    <div id="admin-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 data-translate="admin_modal_title">ระบบห้องควบคุมการเตือนภัย (Operator Dashboard)</h3>
+                <button class="modal-close" onclick="closeAdminModal()">✕</button>
+            </div>
+
+            <!-- Auth Screen -->
+            <div id="admin-auth-section" class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">
+                    กรุณากรอกชื่อบัญชีและรหัสผ่านเพื่อเข้าใช้งานเครื่องมือห้องควบคุม
+                </p>
+                <div class="form-group">
+                    <label for="admin-user">ชื่อผู้ใช้งานสำหรับเจ้าหน้าที่ (Username)</label>
+                    <input type="text" id="admin-user" class="form-input" placeholder="ป้อนบัญชี (เช่น admin)" required>
+                </div>
+                <div class="form-group">
+                    <label for="admin-pass">รหัสผ่านสำหรับเจ้าหน้าที่ (Password)</label>
+                    <input type="password" id="admin-pass" class="form-input" placeholder="ป้อนรหัสผ่าน (เช่น admin)"
+                        required>
+                </div>
+                <div id="auth-error-msg"
+                    style="color: var(--accent-red); font-size: 0.8rem; margin-bottom: 12px; display: none;"></div>
+                <button class="btn-primary" onclick="submitAdminAuth()" data-translate="btn_login">ยืนยันตัวตน</button>
+            </div>
+
+            <!-- Action Screen -->
+            <div id="admin-controls-section" class="modal-body" style="display: none;">
+                <div class="switch-container">
+                    <div class="switch-label">
+                        <strong data-translate="label_sim_mode">เปิดใช้งานโหมดการซ้อมจำลอง (Drill Mode)</strong>
+                        <span data-translate="sim_mode_desc">ระบบจะระบุเป็นข้อมูลจำลองและจะไม่ปนกับสถิติจริง</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="sim-drill-toggle" checked>
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+
+                <form id="incident-trigger-form" onsubmit="triggerMockIncident(event)">
+                    <div class="form-group">
+                        <label for="inc-title" data-translate="label_title">หัวข้อการแจ้งเตือน (Title)</label>
+                        <input type="text" id="inc-title" class="form-input" required
+                            placeholder="เช่น แผ่นดินไหวรุนแรง อ.แม่จัน">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inc-desc" data-translate="label_description">รายละเอียดเพิ่มเติม
+                            (Description)</label>
+                        <textarea id="inc-desc" class="form-input" rows="2"
+                            placeholder="รายละเอียด ทิศทางการรับรู้ ข้อมูลความปลอดภัย"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="inc-type" data-translate="filter_type_label">ประเภทภัย</label>
+                            <select id="inc-type" class="form-select" required onchange="toggleMagnitudeField()">
+                                <option value="earthquake" data-translate="opt_earthquake">แผ่นดินไหว</option>
+                                <option value="tsunami" data-translate="opt_tsunami">สึนามิ</option>
+                                <option value="civil_unrest" data-translate="opt_civil">ความไม่สงบ</option>
+                                <option value="accident" data-translate="opt_accident">อุบัติเหตุร้ายแรง</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="inc-severity" data-translate="filter_severity_label">ความรุนแรง</label>
+                            <select id="inc-severity" class="form-select" required>
+                                <option value="green" data-translate="opt_green">เล็กน้อย (เขียว)</option>
+                                <option value="yellow" data-translate="opt_yellow">เฝ้าระวัง (เหลือง)</option>
+                                <option value="red" data-translate="opt_red">วิกฤต (แดง)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div id="magnitude-group" class="form-group">
+                            <label for="inc-mag" data-translate="label_mag">ขนาด (Magnitude)</label>
+                            <input type="number" id="inc-mag" class="form-input" step="0.1" min="1.0" max="10.0"
+                                placeholder="เช่น 6.5">
+                        </div>
+                        <div class="form-group">
+                            <label data-translate="label_maps_extractor">พิกัดทางภูมิศาสตร์</label>
+                            <button type="button" class="extract-helper-btn" onclick="promptGoogleMapsLink()"
+                                data-translate="btn_extract">ดึงจาก Google Maps Link</button>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="inc-lat" data-translate="label_lat">ละติจูด (Latitude)</label>
+                            <input type="number" id="inc-lat" class="form-input" step="0.0001" required
+                                placeholder="เช่น 19.8510">
+                        </div>
+                        <div class="form-group">
+                            <label for="inc-lon" data-translate="label_lon">ลองจิจูด (Longitude)</label>
+                            <input type="number" id="inc-lon" class="form-input" step="0.0001" required
+                                placeholder="เช่น 99.8830">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-secondary" style="flex: 1;" onclick="closeAdminModal()"
+                                data-translate="btn_cancel">ยกเลิก</button>
+                            <button type="button" class="btn-icon"
+                                style="flex: 1; background-color: var(--accent-yellow); color: black; display: flex; justify-content: center; align-items: center;"
+                                onclick="triggerLocalTestAlert()">🧪 ทดสอบระบบ (Test Alert)</button>
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%;"
+                            data-translate="btn_broadcast">ส่งสัญญานเตือนภัยจริง/ซ้อมแผนทันที 🚀</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Auth Modal (Login / Sign Up Overlay) -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="modal-container auth-modal-container">
+            <div class="modal-header">
+                <h3 id="auth-modal-title">เข้าสู่ระบบ (Sign In)</h3>
+                <button class="modal-close" onclick="closeAuthModal()">✕</button>
+            </div>
+
+            <!-- Sign In Form -->
+            <div id="signin-section" class="modal-body">
+                <form id="signin-form" onsubmit="handleUserSignIn(event)">
+                    <div class="form-group">
+                        <label for="signin-email">อีเมล (Email)</label>
+                        <input type="email" id="signin-email" class="form-input" required
+                            placeholder="example@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="signin-pass">รหัสผ่าน (Password)</label>
+                        <input type="password" id="signin-pass" class="form-input" required placeholder="••••••••">
+                    </div>
+                    <div id="signin-error-msg" class="auth-error-msg"
+                        style="display:none; color:var(--accent-red); margin-bottom:10px;"></div>
+                    <button type="submit" class="btn-primary">เข้าสู่ระบบ</button>
+                    <p class="auth-switch-text"
+                        style="font-size:0.75rem; text-align:center; margin-top:12px; color:var(--text-secondary);">
+                        หากยังไม่ได้สมัครสมาชิก? <a href="#" onclick="switchAuthSection('signup')"
+                            style="color:var(--accent-blue); font-weight:bold;">สมัครสมาชิกเลย!</a></p>
+                </form>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div id="signup-section" class="modal-body" style="display: none;">
+                <form id="signup-form" onsubmit="handleUserSignUp(event)">
+                    <div class="form-group">
+                        <label for="signup-name">ชื่อผู้ใช้งาน (Name)</label>
+                        <input type="text" id="signup-name" class="form-input" required placeholder="ชื่อของคุณ">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">อีเมล (Email)</label>
+                        <input type="email" id="signup-email" class="form-input" required
+                            placeholder="example@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-pass">รหัสผ่าน (Password)</label>
+                        <input type="password" id="signup-pass" class="form-input" required placeholder="••••••••">
+                    </div>
+                    <div id="signup-error-msg" class="auth-error-msg"
+                        style="display:none; color:var(--accent-red); margin-bottom:10px;"></div>
+                    <button type="submit" class="btn-primary">ลงทะเบียน</button>
+                    <p class="auth-switch-text"
+                        style="font-size:0.75rem; text-align:center; margin-top:12px; color:var(--text-secondary);">
+                        มีบัญชีผู้ใช้อยู่แล้ว? <a href="#" onclick="switchAuthSection('signin')"
+                            style="color:var(--accent-blue); font-weight:bold;">เข้าสู่ระบบที่นี่</a></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memo Favorite Annotation Modal -->
+    <div id="memo-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>📝 บันทึกความทรงจำ / Memo</h3>
+                <button class="modal-close" onclick="closeMemoModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">
+                    เขียนบันทึกส่วนตัวสำหรับเหตุการณ์นี้เก็บไว้ในรายการโปรด</p>
+                <input type="hidden" id="memo-incident-id">
+                <div class="form-group">
+                    <label for="memo-text">บันทึกข้อความ (Personal Memo)</label>
+                    <textarea id="memo-text" class="form-input" rows="4"
+                        placeholder="เช่น ฉันทำงานอยู่ในกรุงเทพฯ ตอนเกิดเหตุการณ์นี้..."></textarea>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:14px;">
+                    <button class="btn-secondary" style="flex:1;" onclick="closeMemoModal()">ยกเลิก</button>
+                    <button class="btn-primary" style="flex:2;" onclick="saveFavoriteWithMemo()">บันทึกความทรงจำ
+                        🌟</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet.js Mapping Library JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Socket.io Connection Script -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Custom Application JS Logic -->
+    <script src="app.js"></script>
+</body>
+
+</html>
